@@ -10,7 +10,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // All case routes require authentication
 router.use(authMiddleware);
 
-router.get('/stats', authorize(['ADMIN', 'LAWYER']), caseController.getStats.bind(caseController));
+router.get('/stats', authorize(['ADMIN', 'LAWYER', 'CLIENT']), caseController.getStats.bind(caseController));
 router.get('/', caseController.getAll.bind(caseController));
 router.get('/:id', caseController.getById.bind(caseController));
 router.post('/', authorize(['ADMIN', 'LAWYER']), caseController.create.bind(caseController));

@@ -56,7 +56,18 @@ export class CaseController {
           payments: { orderBy: { date: 'desc' } }
         }
       });
+
       if (!caseFound) return res.status(404).json({ error: 'Caso no encontrado' });
+
+      // Ownership check
+      if (!isAdmin) {
+        const isLawyerOfCase = caseFound.lawyerId === req.user.id;
+        const isClientOfCase = caseFound.clientId === req.user.id;
+        if (!isLawyerOfCase && !isClientOfCase) {
+          return res.status(403).json({ error: 'No tiene permiso para ver este expediente' });
+        }
+      }
+
       res.json(caseFound);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -382,6 +393,13 @@ export class CaseController {
       const { id, subfolder } = req.params;
       const currentCase = await prisma.case.findUnique({ where: { id } });
       if (!currentCase || !currentCase.driveFolderId) return res.status(404).json({ error: 'Carpeta no encontrada' });
+
+      // Ownership check for folder access
+      if (req.user.role !== 'ADMIN') {
+        if (currentCase.lawyerId !== req.user.id && currentCase.clientId !== req.user.id) {
+          return res.status(403).json({ error: 'No tiene permiso para acceder a esta carpeta' });
+        }
+      }
 
       const folderId = await storageProvider.findSubfolderId(currentCase.driveFolderId, subfolder);
       if (!folderId) return res.status(404).json({ error: 'Subcarpeta no encontrada' });
