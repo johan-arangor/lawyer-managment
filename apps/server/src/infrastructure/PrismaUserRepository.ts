@@ -1,0 +1,14 @@
+import { PrismaClient, User } from '@prisma/client';
+import { IUserRepository } from '../domain/interfaces/IUserRepository';
+
+export class PrismaUserRepository implements IUserRepository {
+  private prisma = new PrismaClient();
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email } });
+  }
+
+  async create(data: any): Promise<User> {
+    return this.prisma.user.create({ data });
+  }
+}
