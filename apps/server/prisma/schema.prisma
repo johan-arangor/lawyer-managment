@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  LAWYER
+  CLIENT
+}
+
+enum FeeType {
+  FIXED
+  PERCENTAGE
+}
+
+enum CaseStatus {
+  PENDING
+  IN_PROGRESS
+  CLOSED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CLIENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  casesAsLawyer Case[]         @relation("LawyerCases")
+  casesAsClient Case[]         @relation("ClientCases")
+  closedCases   Case[]         @relation("ClosedCases")
+  followUpNotes FollowUpNote[]
+  deletedNotes  FollowUpNote[] @relation("DeletedNotes")
+  statusHistory StatusHistory[]
+}
+
+model Case {
+  id              String         @id @default(uuid())
+  title           String
+  caseNumber      String         @unique
+  fees            Decimal        @db.Decimal(15, 2)
+  feeType         FeeType        @default(FIXED)
+  paidBalance     Decimal        @default(0) @db.Decimal(15, 2)
+  description     String?        @db.Text
+  status          CaseStatus     @default(PENDING)
+  statusUpdatedAt DateTime       @default(now())
+  driveFolderId   String?
+  closedAt        DateTime?
+  closedById      String?
+  followUpLinks   FollowUpLink[]
+  followUpNotes   FollowUpNote[]
+  statusHistory   StatusHistory[]
+  payments        Payment[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relationships
+  lawyerId String
+  lawyer   User   @relation("LawyerCases", fields: [lawyerId], references: [id])
+  clientId String
+  client   User   @relation("ClientCases", fields: [clientId], references: [id])
+  closedBy User?  @relation("ClosedCases", fields: [closedById], references: [id])
+}
+
+model FollowUpLink {
+  id        String   @id @default(uuid())
+  title     String?
+  url       String   @db.Text
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model FollowUpNote {
+  id                String    @id @default(uuid())
+  title             String?
+  content           String    @db.Text
+  isVisibleByClient Boolean   @default(false)
+  caseId            String
+  case              Case      @relation(fields: [caseId], references: [id])
+  authorId          String
+  author            User      @relation(fields: [authorId], references: [id])
+  createdAt         DateTime  @default(now())
+  
+  // Audit details (Soft delete)
+  deletedAt       DateTime?
+  deletedById     String?
+  deletedBy       User?     @relation("DeletedNotes", fields: [deletedById], references: [id])
+  deletionReason  String?   @db.Text
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  amount        Decimal  @db.Decimal(15, 2)
+  method        String   @default("TRANSFERENCIA") // EFECTIVO, CONSIGNACION, TRANSFERENCIA
+  date          DateTime @default(now())
+  comprobanteId String?  // ID de archivo en Drive
+  caseId        String
+  case          Case     @relation(fields: [caseId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model StatusHistory {
+  id        String     @id @default(uuid())
+  from      CaseStatus
+  to        CaseStatus
+  reason    String     @db.Text
+  caseId    String
+  case      Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id])
+  createdAt DateTime   @default(now())
+}
