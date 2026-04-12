@@ -25,13 +25,37 @@ enum CaseStatus {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(CLIENT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String         @id @default(uuid())
+  email            String         @unique
+  password         String
+  name             String
+  role             Role           @default(CLIENT)
+  
+  // Identidad Legal (KISS: Campos únicos y requeridos)
+  documentType     DocumentType   @default(CC)
+  documentNumber   String?        @unique
+  businessName     String?        // Obligatorio si documentType == NIT
+  
+  // Información de Contacto
+  phone            String?        // Celular Principal (Obligatorio)
+  phoneSecondary   String?        // Celular 2
+  landline         String?        // Teléfono Fijo
+  address          String?
+  
+  // Contacto de Emergencia / Respaldo
+  contactName2     String?
+  contactPhone2    String?
+  contactEmail2    String?
+  
+  // Control de Acceso y Verificación
+  isConfirmed      Boolean        @default(false)
+  isActive         Boolean        @default(true) // Para borrado lógico
+  confirmationToken String?       @unique
+  resetToken       String?        @unique
+  tokenExpires     DateTime?
+  
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   // Relationships
   casesAsLawyer Case[]         @relation("LawyerCases")
@@ -40,6 +64,13 @@ model User {
   followUpNotes FollowUpNote[]
   deletedNotes  FollowUpNote[] @relation("DeletedNotes")
   statusHistory StatusHistory[]
+}
+
+enum DocumentType {
+  CC
+  TI
+  CE
+  NIT
 }
 
 model Case {

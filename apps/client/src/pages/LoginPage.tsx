@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 import api from '../api/axios';
@@ -84,8 +84,17 @@ const LoginPage = () => {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-slate-400">
-          ¿Problemas con el acceso? Contacta a soporte técnico.
+        <div className="mt-4 text-center">
+          <Link 
+             to="/forgot-password"
+             className="text-xs font-bold text-navy-900 hover:text-gold-600 transition-colors"
+          >
+            ¿Olvidaste tu contraseña o necesitas activar tu cuenta?
+          </Link>
+        </div>
+
+        <p className="mt-8 text-center text-[10px] font-black uppercase tracking-widest text-slate-300">
+          Enlace Jurídico • Seguridad Maestra
         </p>
       </motion.div>
     </div>
