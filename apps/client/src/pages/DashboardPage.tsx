@@ -132,6 +132,15 @@ const DashboardPage = () => {
               >
                 <DollarSign className="w-5 h-5" /> Mis Ingresos
               </button>
+              <div className="pt-4 mt-4 border-t border-white/10">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-2">Administración</p>
+                <button
+                  onClick={() => setActiveView('users_all')}
+                  className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition-all ${activeView === 'users_all' ? 'bg-gold-400 text-navy-900 shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
+                >
+                  <User className="w-5 h-5" /> Todos los Usuarios
+                </button>
+              </div>
             </>
           )}
         </nav>
@@ -152,7 +161,8 @@ const DashboardPage = () => {
             <h1 className="text-2xl font-black text-navy-900 tracking-tight">
               {activeView === 'cases' ? 'Gestión de Procesos' :
                 activeView === 'clients' ? 'Directorio de Clientes' :
-                  activeView === 'lawyers' ? 'Cuerpo Jurídico' : 'Panel Financiero'}
+                  activeView === 'lawyers' ? 'Cuerpo Jurídico' : 
+                    activeView === 'users_all' ? 'Gestión General de Usuarios' : 'Panel Financiero'}
             </h1>
             {activeView === 'cases' && (
               <div className="flex bg-slate-100 p-1 rounded-xl">
@@ -300,6 +310,11 @@ const DashboardPage = () => {
             <AdminUsersTable roleFilter="CLIENT" />
           ) : activeView === 'lawyers' ? (
             <AdminUsersTable roleFilter="LAWYER" />
+          ) : activeView === 'users_all' ? (
+            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+               <AdminUsersTable roleFilter="LAWYER" hideFolder={true} />
+               <AdminUsersTable roleFilter="CLIENT" hideFolder={true} />
+            </div>
           ) : (
             <div className="space-y-6 animate-in fade-in duration-500">
               {/* Financial View with Summary Mini-Cards */}
