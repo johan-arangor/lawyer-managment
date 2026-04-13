@@ -342,8 +342,8 @@ export class CaseController {
           data: updateData,
           include: { 
             statusHistory: { include: { author: { select: { name: true } } }, orderBy: { createdAt: 'desc' } },
-            lawyer: { select: { name: true } },
-            client: { select: { name: true } },
+            lawyer: { select: { id: true, name: true } },
+            client: { select: { id: true, name: true, email: true } },
             followUpNotes: { 
               where: { deletedAt: null },
               include: { author: { select: { name: true } } }, 
