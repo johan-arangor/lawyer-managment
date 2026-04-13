@@ -5,6 +5,7 @@ import api from '../api/axios';
 import CreateCaseModal from '../components/CreateCaseModal';
 import CaseDetailsSidebar from '../components/CaseDetailsSidebar';
 import AdminUsersTable from '../components/AdminUsersTable';
+import ProfileModal from '../components/ProfileModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface Case {
@@ -27,6 +28,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('cases'); // 'cases', 'clients', 'income', 'users'
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<any>(null);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'ACTIVE' | 'CLOSED'>('ACTIVE');
@@ -181,15 +183,18 @@ const DashboardPage = () => {
                 <Plus className="w-5 h-5" /> Nuevo Caso
               </button>
             )}
-            <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
-              <div className="bg-navy-900 w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold">
+            <button 
+              onClick={() => setIsProfileOpen(true)}
+              className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100 hover:bg-slate-100 transition-all cursor-pointer"
+            >
+              <div className="bg-navy-900 w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm">
                 {user.name?.charAt(0)}
               </div>
               <div className="text-left hidden md:block">
                 <p className="text-xs font-black text-navy-900 leading-none">{user.name}</p>
                 <p className="text-[10px] text-gold-600 font-bold uppercase">{user.role}</p>
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -439,6 +444,7 @@ const DashboardPage = () => {
           handleSelectCase(id);
         }}
       />
+      <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </div>
   );
 };

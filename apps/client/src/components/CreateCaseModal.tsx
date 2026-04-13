@@ -77,6 +77,13 @@ const CreateCaseModal = ({ isOpen, onClose, onSuccess }: any) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+    const invalidLink = formData.followUpLinks.find(l => l.url && !urlRegex.test(l.url));
+    if (invalidLink) {
+      setStatus({ type: 'error', msg: `El enlace "${invalidLink.title || invalidLink.url}" no tiene un formato de URL válido.` });
+      return;
+    }
+
     if (!formData.clientId) {
       setStatus({ type: 'error', msg: 'Debe seleccionar un cliente para el proceso.' });
       return;

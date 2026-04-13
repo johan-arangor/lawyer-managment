@@ -21,7 +21,8 @@ const EditCaseModal = ({ isOpen, onClose, onSuccess, caseData }: EditCaseModalPr
     feeType: 'FIXED',
     lawyerId: '',
     clientId: '',
-    description: ''
+    description: '',
+    followUpLinks: [] as { id?: string; title: string; url: string }[]
   });
 
   const authUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -39,7 +40,8 @@ const EditCaseModal = ({ isOpen, onClose, onSuccess, caseData }: EditCaseModalPr
           feeType: caseData.feeType || 'FIXED',
           lawyerId: caseData.lawyerId || '',
           clientId: caseData.clientId || '',
-          description: caseData.description || ''
+          description: caseData.description || '',
+          followUpLinks: caseData.followUpLinks || []
         });
       }
     }
@@ -167,6 +169,58 @@ const EditCaseModal = ({ isOpen, onClose, onSuccess, caseData }: EditCaseModalPr
             onChange={e => setFormData({ ...formData, description: e.target.value })}
             className="w-full px-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none h-24 font-medium"
           />
+        </div>
+
+        {/* External Links Section in Edit */}
+        <div className="space-y-4 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+          <div className="flex justify-between items-center">
+            <h4 className="text-[10px] font-black text-navy-900 uppercase tracking-widest">Vinculaciones Externas (Rama / Consultas)</h4>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, followUpLinks: [...formData.followUpLinks, { title: '', url: '' }] })}
+              className="text-[10px] font-black uppercase text-gold-600 hover:underline"
+            >
+              + Añadir Enlace
+            </button>
+          </div>
+          <div className="space-y-3">
+            {formData.followUpLinks.map((link, idx) => (
+              <div key={idx} className="flex gap-2">
+                <input
+                  placeholder="Título (Ej: Rama Judicial)"
+                  className="flex-1 px-3 py-2 bg-white border border-slate-100 rounded-xl text-xs font-bold outline-none"
+                  value={link.title}
+                  onChange={e => {
+                    const newLinks = [...formData.followUpLinks];
+                    newLinks[idx].title = e.target.value;
+                    setFormData({ ...formData, followUpLinks: newLinks });
+                  }}
+                />
+                <input
+                  placeholder="URL del proceso"
+                  className="flex-[2] px-3 py-2 bg-white border border-slate-100 rounded-xl text-xs font-medium outline-none"
+                  value={link.url}
+                  onChange={e => {
+                    const newLinks = [...formData.followUpLinks];
+                    newLinks[idx].url = e.target.value;
+                    setFormData({ ...formData, followUpLinks: newLinks });
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, followUpLinks: formData.followUpLinks.filter((_, i) => i !== idx) })}
+                  className="text-red-400 hover:text-red-600 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            {formData.followUpLinks.length === 0 && (
+              <p className="text-center py-4 text-[10px] text-slate-400 font-bold italic">No hay vinculaciones registradas</p>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-4 pt-4">

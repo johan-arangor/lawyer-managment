@@ -64,6 +64,10 @@ model User {
   followUpNotes FollowUpNote[]
   deletedNotes  FollowUpNote[] @relation("DeletedNotes")
   statusHistory StatusHistory[]
+  payments      Payment[]       @relation("PaymentsRegistered")
+  uploadedDocs     DocumentLog[]   @relation("UploadedDocs")
+  deletedDocs      DocumentLog[]   @relation("DeletedDocs")
+  emailLogs     EmailLog[]
 }
 
 enum DocumentType {
@@ -90,6 +94,7 @@ model Case {
   followUpNotes   FollowUpNote[]
   statusHistory   StatusHistory[]
   payments        Payment[]
+  documents       DocumentLog[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
@@ -134,9 +139,44 @@ model Payment {
   method        String   @default("TRANSFERENCIA") // EFECTIVO, CONSIGNACION, TRANSFERENCIA
   date          DateTime @default(now())
   comprobanteId String?  // ID de archivo en Drive
+  
   caseId        String
   case          Case     @relation(fields: [caseId], references: [id])
+  
+  registeredById String?
+  registeredBy   User?     @relation("PaymentsRegistered", fields: [registeredById], references: [id])
+  
   createdAt     DateTime @default(now())
+}
+
+model DocumentLog {
+  id          String   @id @default(uuid())
+  fileName    String
+  fileId      String
+  
+  // Soft Delete and Audit
+  deletedAt      DateTime?
+  deletedById    String?
+  deletedBy      User?     @relation("DeletedDocs", fields: [deletedById], references: [id])
+  deletionReason String?   @db.Text
+
+  uploadedById String
+  uploadedBy  User     @relation("UploadedDocs", fields: [uploadedById], references: [id])
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model EmailLog {
+  id          String   @id @default(uuid())
+  to          String
+  subject     String
+  status      String   // SENT, FAILED
+  error       String?  @db.Text
+  attempts    Int      @default(1)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 model StatusHistory {
