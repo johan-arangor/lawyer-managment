@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, FileText, Upload, MessageSquare, Clock, ExternalLink, Loader2, DollarSign, Wallet, Trash2, Edit, PlusCircle, User, Shield, Folder, CheckCircle2, ChevronRight, Link2, Eye, EyeOff, ShieldAlert, RefreshCw, Lock, AlertTriangle, UserX } from 'lucide-react';
+import { X, FileText, Upload, MessageSquare, Clock, ExternalLink, Loader2, DollarSign, Wallet, Trash2, Edit, PlusCircle, User, Shield, Folder, CheckCircle2, ChevronRight, Eye, EyeOff, ShieldAlert, RefreshCw, Lock, AlertTriangle, UserX } from 'lucide-react';
 import api from '../api/axios';
 import Modal from './Modal';
 import EditCaseModal from './EditCaseModal';
