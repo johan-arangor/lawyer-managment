@@ -39,7 +39,7 @@ export class GoogleDriveProvider implements IStorageProvider {
       // Create subfolders: EVIDENCIAS, DOCUMENTOS, PAGOS, OTROS, CLIENTE
       const subfolders = ['EVIDENCIAS', 'DOCUMENTOS', 'PAGOS', 'OTROS', 'CLIENTE'];
       for (const subName of subfolders) {
-        await this.drive.files.create({
+        const sub = await this.drive.files.create({
           requestBody: {
             name: subName,
             mimeType: 'application/vnd.google-apps.folder',
@@ -48,6 +48,11 @@ export class GoogleDriveProvider implements IStorageProvider {
           fields: 'id',
           supportsAllDrives: true,
         });
+
+        // Make "CLIENTE" and "PAGOS" folders public automatically (KISS for all clients)
+        if ((subName === 'DOCUMENTOS' || subName === 'EVIDENCIAS' || subName === 'OTROS' || subName === 'CLIENTE' || subName === 'PAGOS') && sub.data.id) {
+          await this.shareFolder(sub.data.id, 'anyone', 'reader');
+        }
       }
 
       return rootFolderId;
@@ -126,6 +131,78 @@ export class GoogleDriveProvider implements IStorageProvider {
     } catch (error) {
       console.error('Error finding subfolder:', error);
       return null;
+    }
+  }
+
+  async shareFolder(folderId: string, email: string, role: 'reader' | 'writer' = 'reader'): Promise<void> {
+    try {
+      const isPublic = email === 'anyone';
+
+      await this.drive.permissions.create({
+        fileId: folderId,
+        requestBody: {
+          role: role === 'reader' ? 'reader' : 'writer',
+          type: isPublic ? 'anyone' : 'user',
+          ...(isPublic ? {} : { emailAddress: email }),
+        },
+        supportsAllDrives: true,
+      });
+    } catch (error) {
+      console.error(`Error sharing folder ${folderId} with ${email}:`, error);
+    }
+  }
+
+  async ensureSubfolder(parentFolderId: string, name: string): Promise<string | null> {
+    try {
+      let subId = await this.findSubfolderId(parentFolderId, name);
+      if (subId) return subId;
+
+      const subFolder = await this.drive.files.create({
+        requestBody: {
+          name,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [parentFolderId],
+        },
+        fields: 'id',
+        supportsAllDrives: true,
+      });
+
+      const newId = subFolder.data.id || null;
+      
+      // Auto-share public folders if created on-demand
+      const publicFolders = ['EVIDENCIAS', 'DOCUMENTOS', 'PAGOS', 'OTROS', 'CLIENTE'];
+      if (newId && publicFolders.includes(name)) {
+        await this.shareFolder(newId, 'anyone', 'reader');
+      }
+
+      return newId;
+    } catch (error) {
+      console.error('Error ensuring subfolder:', error);
+      return null;
+    }
+  }
+
+  async moveFile(fileId: string, targetFolderId: string): Promise<void> {
+    try {
+      // 1. Get current parents to remove them
+      const file = await this.drive.files.get({
+        fileId: fileId,
+        fields: 'parents',
+        supportsAllDrives: true,
+      });
+      const previousParents = file.data.parents?.join(',') || '';
+
+      // 2. Update file parents
+      await this.drive.files.update({
+        fileId: fileId,
+        addParents: targetFolderId,
+        removeParents: previousParents,
+        fields: 'id, parents',
+        supportsAllDrives: true,
+      });
+    } catch (error) {
+      console.error('Google Drive Move File Error:', error);
+      throw new Error('Failed to move file in storage');
     }
   }
 }

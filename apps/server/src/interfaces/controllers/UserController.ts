@@ -175,6 +175,33 @@ export class UserController {
     }
   }
 
+  async changePassword(req: any, res: any) {
+    try {
+      const { id } = req.params;
+      const { currentPassword, newPassword } = req.body;
+
+      if (req.user.id !== id) {
+        return res.status(403).json({ error: 'No puedes cambiar la contraseña de otro usuario.' });
+      }
+
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) return res.status(400).json({ error: 'La contraseña actual es incorrecta.' });
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id },
+        data: { password: hashedPassword }
+      });
+
+      res.json({ message: 'Contraseña actualizada exitosamente.' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   async resendConfirmation(req: any, res: any) {
     try {
       const { id } = req.params;

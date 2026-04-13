@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage';
 import ConfirmAccountPage from './pages/ConfirmAccountPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import PublicCaseLookup from './pages/PublicCaseLookup';
 
 const HomePage = () => (
   <motion.div
@@ -26,8 +27,8 @@ const HomePage = () => (
         <p className="text-slate-500 font-medium">Gestión Documental & Procesos Legales</p>
       </div>
       <div className="flex flex-col gap-3">
-        <Link to="/login" className="btn-primary">Iniciar Sesión</Link>
-        <button className="text-navy-900 font-semibold hover:underline">Consultar Estado de Caso</button>
+        <Link to="/login" className="btn-primary flex items-center justify-center">Iniciar Sesión</Link>
+        <Link to="/lookup" className="text-navy-900 font-semibold hover:underline text-center">Consultar Estado de Caso</Link>
       </div>
     </div>
 
@@ -47,6 +48,7 @@ function App() {
         <Route path="/confirm-account" element={<ConfirmAccountPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/lookup" element={<PublicCaseLookup />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>

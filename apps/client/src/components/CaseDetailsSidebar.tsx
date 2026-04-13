@@ -22,8 +22,10 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDeleteNoteOpen, setIsDeleteNoteOpen] = useState(false);
+  const [isDeleteDocOpen, setIsDeleteDocOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<any>(null);
   const [noteToDelete, setNoteToDelete] = useState<any>(null);
+  const [docToDelete, setDocToDelete] = useState<any>(null);
 
   // External Link Modal Form
   const [linkData, setLinkData] = useState({ title: '', url: '' });
@@ -43,6 +45,12 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
   const [paymentData, setPaymentData] = useState({ amount: '', method: 'TRANSFERENCIA', date: new Date().toISOString().split('T')[0] });
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  // New Upload System State
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFolder, setUploadFolder] = useState('CLIENTE');
+  const [submittingUpload, setSubmittingUpload] = useState(false);
 
   const authUser = JSON.parse(localStorage.getItem('user') || '{}');
   const isFixed = selectedCase?.feeType === 'FIXED';
@@ -75,8 +83,8 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
 
   // Generate code when modals open
   useEffect(() => {
-    if (isStatusOpen || isDeleteNoteOpen) generateCode();
-  }, [isStatusOpen, isDeleteNoteOpen]);
+    if (isStatusOpen || isDeleteNoteOpen || isDeleteDocOpen) generateCode();
+  }, [isStatusOpen, isDeleteNoteOpen, isDeleteDocOpen]);
 
   if (!selectedCase) return null;
 
@@ -106,6 +114,14 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
   const handleAddFullNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!noteContent.trim() || isClosed) return;
+
+    const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+    const invalidLink = noteLinks.find(l => l.url && !urlRegex.test(l.url));
+    if (invalidLink) {
+      Swal.fire('Error', `El formato de la URL "${invalidLink.title || invalidLink.url}" no es válido`, 'error');
+      return;
+    }
+
     setSubmittingNote(true);
 
     // Format content with links
@@ -177,10 +193,47 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
         data: { reason: deletionReason }
       });
       setIsDeleteNoteOpen(false);
+      setNoteToDelete(null);
       onUpdate(selectedCase.id);
       Swal.fire({ icon: 'success', title: 'Nota Anulada', text: 'El registro se ha marcado como borrado para auditoría.', toast: true, position: 'top-end', showConfirmButton: false, timer: 4000 });
     } catch (err) {
       Swal.fire('Error', 'No se pudo anular la nota', 'error');
+    } finally {
+      setSubmittingDeletion(false);
+    }
+  };
+
+  const handleRequestDocDeletion = (doc: any) => {
+    if (isClosed) return;
+    setDocToDelete(doc);
+    setDeletionReason('');
+    setUserCodeInput('');
+    setIsDeleteDocOpen(true);
+  };
+
+  const handleConfirmDocDeletion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (userCodeInput.toUpperCase() !== verificationCode || !deletionReason.trim()) return;
+
+    setSubmittingDeletion(true);
+    try {
+      await api.delete(`/cases/${selectedCase.id}/documents/${docToDelete.id}`, {
+        data: { reason: deletionReason }
+      });
+      setIsDeleteDocOpen(false);
+      setDocToDelete(null);
+      onUpdate(selectedCase.id);
+      Swal.fire({ 
+        icon: 'success', 
+        title: 'Documento Anulado', 
+        text: 'El archivo ha sido movido a la carpeta de eliminados y registrado en auditoría.', 
+        toast: true, 
+        position: 'top-end', 
+        showConfirmButton: false, 
+        timer: 5000 
+      });
+    } catch (err: any) {
+      Swal.fire('Error', err.response?.data?.error || 'No se pudo anular el documento', 'error');
     } finally {
       setSubmittingDeletion(false);
     }
@@ -248,10 +301,42 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
     }
   };
 
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile || submittingUpload) return;
+
+    setSubmittingUpload(true);
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+
+    try {
+      await api.post(`/cases/${selectedCase.id}/documents?folder=${uploadFolder}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setIsUploadOpen(false);
+      setUploadFile(null);
+      onUpdate(selectedCase.id);
+      Swal.fire({
+        icon: 'success',
+        title: 'Documento Cargado',
+        text: `El archivo se guardó en la carpeta ${uploadFolder} y se registró en la auditoría.`,
+        timer: 3000
+      });
+    } catch (err: any) {
+      Swal.fire('Error', err.response?.data?.error || 'No se pudo subir el archivo', 'error');
+    } finally {
+      setSubmittingUpload(false);
+    }
+  };
+
   const handleOpenFolder = async (subfolder?: string) => {
     try {
       const endpoint = subfolder ? `/cases/${selectedCase.id}/folder/${subfolder}` : null;
       if (!endpoint) {
+        if (authUser.role !== 'ADMIN') {
+          Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo la administración central puede acceder al contenedor raíz del expediente.' });
+          return;
+        }
         window.open(`https://drive.google.com/open?id=${selectedCase.driveFolderId}`, '_blank');
         return;
       }
@@ -403,13 +488,19 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
                       <div className="p-3 bg-emerald-50 rounded-2xl">
                         <DollarSign className="w-4 h-4 text-emerald-600" />
                       </div>
-                      <div>
-                        <p className="text-sm font-black text-navy-900">${Number(p.amount).toLocaleString()}</p>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase">{p.method} • {new Date(p.date).toLocaleDateString()}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className="text-sm font-black text-navy-900">${Number(p.amount).toLocaleString()}</p>
+                          <p className="text-[9px] font-black text-slate-300 uppercase">#{p.id.split('-')[0]}</p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase truncate">{p.method} • {new Date(p.date).toLocaleDateString()}</p>
+                        <p className="text-[9px] text-navy-600 font-black uppercase mt-1 flex items-center gap-1">
+                          <Shield className="w-3 h-3 text-gold-600" /> Registrado por: {p.registeredBy?.name || 'Sistema'}
+                        </p>
                       </div>
                     </div>
                     {p.comprobanteId && (
-                      <a href={`https://drive.google.com/open?id=${p.comprobanteId}`} target="_blank" className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-gold-50 hover:text-gold-600 transition-all">
+                      <a href={`https://drive.google.com/open?id=${p.comprobanteId}`} target="_blank" className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-gold-50 hover:text-gold-600 transition-all ml-4">
                         <FileText className="w-4 h-4" />
                       </a>
                     )}
@@ -558,7 +649,7 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        {authUser.role === 'ADMIN' && item.type === 'NOTE' && !isDeleted && !isClosed && (
+                        {(authUser.role === 'ADMIN' || authUser.role === 'LAWYER') && item.type === 'NOTE' && !isDeleted && !isClosed && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -585,46 +676,143 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
       case 'files':
         return (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 gap-4">
-              {authUser.role !== 'CLIENT' && (
-                <>
-                  <div className="p-5 border border-slate-100 rounded-[1.75rem] flex items-center gap-4 bg-slate-50 hover:bg-white hover:shadow-xl transition-all group overflow-hidden">
-                    <div className="bg-navy-900 p-3 rounded-2xl group-hover:scale-110 transition-transform flex-shrink-0">
-                      <DollarSign className="text-gold-400" />
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-sm font-black text-navy-900 uppercase tracking-tight">Carpeta de Pagos</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Archivo de Comprobantes Drive</p>
-                    </div>
-                    <button onClick={() => handleOpenFolder('PAGOS')} className="p-3 bg-white rounded-xl shadow-sm text-gold-600 hover:text-navy-900 transition-all hover:rotate-12"><ExternalLink className="w-5 h-5" /></button>
+            {authUser.role !== 'CLIENT' && (
+              <button
+                onClick={() => setIsUploadOpen(true)}
+                className="w-full py-4 bg-navy-900 text-gold-400 font-black rounded-[1.5rem] border border-navy-800 hover:shadow-2xl transition-all flex items-center justify-center gap-3 group"
+              >
+                <Upload className="w-5 h-5 group-hover:-translate-y-1 transition-transform" />
+                Cargar Nuevo Documento al Expediente
+              </button>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Folder shortcuts grid - All public except internal admin root */}
+              <div className="p-4 border border-slate-100 rounded-[1.75rem] flex items-center gap-3 bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+                <div className="bg-emerald-500 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
+                  <DollarSign className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-navy-900 uppercase">Carpeta Pagos</p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase truncate">Comprobantes</p>
+                </div>
+                <button onClick={() => handleOpenFolder('PAGOS')} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-emerald-600 transition-all"><ExternalLink className="w-4 h-4" /></button>
+              </div>
+
+              <div className="p-4 border border-slate-100 rounded-[1.75rem] flex items-center gap-3 bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+                <div className="bg-blue-500 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-navy-900 uppercase">Carpeta Cliente</p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase truncate">Gestion Compartida</p>
+                </div>
+                <button onClick={() => handleOpenFolder('CLIENTE')} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-blue-600 transition-all"><ExternalLink className="w-4 h-4" /></button>
+              </div>
+
+              <div className="p-4 border border-slate-100 rounded-[1.75rem] flex items-center gap-3 bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+                <div className="bg-amber-500 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
+                  <ShieldAlert className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-navy-900 uppercase">Carpeta Evidencias</p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase truncate">Pruebas / Soportes</p>
+                </div>
+                <button onClick={() => handleOpenFolder('EVIDENCIAS')} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-amber-600 transition-all"><ExternalLink className="w-4 h-4" /></button>
+              </div>
+
+              <div className="p-4 border border-slate-100 rounded-[1.75rem] flex items-center gap-3 bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+                <div className="bg-navy-900 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
+                  <FileText className="w-5 h-5 text-gold-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-navy-900 uppercase">Carpeta Documentos</p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase truncate">Procesos / Folios</p>
+                </div>
+                <button onClick={() => handleOpenFolder('DOCUMENTOS')} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-navy-900 transition-all"><ExternalLink className="w-4 h-4" /></button>
+              </div>
+
+              <div className="p-4 border border-slate-100 rounded-[1.75rem] flex items-center gap-3 bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+                <div className="bg-slate-500 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
+                  <Folder className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-navy-900 uppercase">Carpeta Otros</p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase truncate">Documentación Afín</p>
+                </div>
+                <button onClick={() => handleOpenFolder('OTROS')} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-slate-800 transition-all"><ExternalLink className="w-4 h-4" /></button>
+              </div>
+
+              {authUser.role === 'ADMIN' && (
+                <div className="p-4 border-2 border-dashed border-red-100 rounded-[1.75rem] flex items-center gap-3 bg-red-50 hover:bg-white hover:shadow-xl transition-all group relative overflow-hidden">
+                  <div className="bg-red-600 p-2.5 rounded-xl group-hover:scale-110 transition-transform">
+                    <Lock className="w-5 h-5 text-white" />
                   </div>
-                  <div className="p-5 border border-slate-100 rounded-[1.75rem] flex items-center gap-4 bg-slate-50 hover:bg-white hover:shadow-xl transition-all group overflow-hidden">
-                    <div className="bg-navy-900 p-3 rounded-2xl group-hover:scale-110 transition-transform flex-shrink-0">
-                      <Shield className="text-gold-400" />
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-sm font-black text-navy-900 uppercase tracking-tight">Carpeta Administrativa</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Gestión Interna / Procesos</p>
-                    </div>
-                    <button onClick={() => handleOpenFolder()} className="p-3 bg-white rounded-xl shadow-sm text-gold-600 hover:text-navy-900 transition-all hover:rotate-12"><ExternalLink className="w-5 h-5" /></button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-black text-red-700 uppercase">Contenedor Raíz</p>
+                    <p className="text-[9px] text-red-400 font-bold uppercase truncate">Admin Central Drive</p>
                   </div>
-                </>
+                  <button onClick={() => handleOpenFolder()} className="p-2 bg-white rounded-lg text-red-500 hover:text-red-700 shadow-sm transition-all"><ExternalLink className="w-4 h-4" /></button>
+                </div>
               )}
-              <div className="p-5 border border-slate-100 rounded-[1.75rem] flex items-center gap-4 bg-slate-50 hover:bg-white hover:shadow-xl transition-all group overflow-hidden">
-                <div className="bg-navy-900 p-3 rounded-2xl group-hover:scale-110 transition-transform flex-shrink-0">
-                  <FileText className="text-gold-400" />
+            </div>
+
+              {/* Document forensic log */}
+              <div className="mt-8 space-y-4">
+                <div className="flex items-center gap-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <ShieldAlert className="w-4 h-4" /> Rastro Forense de Documentación
                 </div>
-                <div className="flex-1 overflow-hidden">
-                  <p className="text-sm font-black text-navy-900 uppercase tracking-tight">Carpeta Cliente</p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Expediente Compartido Google Drive</p>
+                <div className="space-y-2">
+                  {selectedCase.documents?.map((doc: any) => (
+                    <div key={doc.id} className={`p-4 border rounded-2xl flex items-center justify-between group transition-all ${doc.deletedAt ? 'bg-red-50/30 border-red-100 opacity-80 italic' : 'bg-white border-slate-50 hover:border-gold-100'}`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`p-2 rounded-lg ${doc.deletedAt ? 'bg-red-100 text-red-500' : 'bg-slate-50 text-slate-400'}`}>
+                          {doc.deletedAt ? <Trash2 className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className={`text-xs font-black truncate ${doc.deletedAt ? 'text-red-700' : 'text-navy-900'}`}>{doc.fileName}</p>
+                            {doc.deletedAt && (
+                              <span className="flex items-center gap-1 bg-red-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-widest animate-pulse">
+                                <AlertTriangle className="w-2 h-2" /> ANULADO
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase">
+                            <User className="w-3 h-3" /> {doc.uploadedBy?.name}
+                            <span className="w-0.5 h-0.5 bg-slate-200 rounded-full" />
+                            <Clock className="w-3 h-3" /> {new Date(doc.createdAt).toLocaleString()}
+                          </div>
+                          {doc.deletedAt && (
+                            <p className="text-[8px] text-red-500 font-black uppercase mt-1 flex items-center gap-1">
+                              <UserX className="w-3 h-3" /> Eliminado por: {doc.deletedBy?.name || 'Admin'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!doc.deletedAt && (
+                          <a href={`https://drive.google.com/open?id=${doc.fileId}`} target="_blank" className="p-2 opacity-0 group-hover:opacity-100 text-gold-600 hover:bg-gold-50 rounded-lg transition-all">
+                            <Eye className="w-4 h-4" />
+                          </a>
+                        )}
+                        {(authUser.role === 'ADMIN' || authUser.role === 'LAWYER') && !isClosed && !doc.deletedAt && (
+                          <button
+                            onClick={() => handleRequestDocDeletion(doc)}
+                            className="p-2 opacity-0 group-hover:opacity-100 text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {(!selectedCase.documents || selectedCase.documents.length === 0) && (
+                    <p className="text-center py-6 text-slate-300 font-medium italic text-xs bg-slate-50/50 rounded-2xl border border-dashed border-slate-100">Sin archivos auditados digitalmente</p>
+                  )}
                 </div>
-                <button onClick={() => handleOpenFolder('CLIENTE')} className="p-3 bg-white rounded-xl shadow-sm text-gold-600 hover:text-navy-900 transition-all hover:rotate-12">
-                  <ExternalLink className="w-5 h-5" />
-                </button>
               </div>
             </div>
-          </div>
-        );
+          );
 
       default: return null;
     }
@@ -671,11 +859,87 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
             onSuccess={() => onUpdate(selectedCase.id)}
           />
 
-          {/* ANULACIÓN MODAL PROTOCOL */}
+          {/* New Document Upload Modal */}
+          <Modal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} title="Cargar Documento" size="md">
+            <form onSubmit={handleUploadDocument} className="space-y-6">
+              <div className="p-4 bg-navy-50 border border-navy-100 rounded-2xl flex gap-3">
+                <Shield className="w-5 h-5 text-gold-500 flex-shrink-0" />
+                <p className="text-[11px] text-navy-800 font-medium leading-relaxed">
+                  Todo documento cargado será auditado. Asegúrese de seleccionar la categoría correcta para facilitar la gestión del expediente.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-navy-900 uppercase tracking-widest ml-1">Carpeta de Destino</label>
+                  <select
+                    className="w-full px-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-xs outline-none focus:ring-2 focus:ring-gold-500 transition-all"
+                    value={uploadFolder}
+                    onChange={e => setUploadFolder(e.target.value)}
+                  >
+                    <option value="DOCUMENTOS">DOCUMENTOS / FOLIOS</option>
+                    <option value="EVIDENCIAS">EVIDENCIAS / PRUEBAS</option>
+                    <option value="CLIENTE">EXPEDIENTE CLIENTE</option>
+                    <option value="PAGOS">COMPROBANTES DE PAGO</option>
+                    <option value="OTROS">OTROS DOCUMENTOS</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-navy-900 uppercase tracking-widest ml-1">Seleccionar Archivo</label>
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      id="upload-file"
+                      className="hidden"
+                      onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                    />
+                    <label
+                      htmlFor="upload-file"
+                      className={`w-full py-10 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${uploadFile ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200 hover:bg-white hover:border-gold-300 shadow-sm'}`}
+                    >
+                      {uploadFile ? (
+                        <>
+                          <div className="p-3 bg-emerald-100 rounded-2xl">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                          </div>
+                          <div className="text-center px-4">
+                            <p className="text-[11px] font-black text-emerald-700 truncate max-w-[300px]">{uploadFile.name}</p>
+                            <p className="text-[9px] text-emerald-500 font-bold uppercase mt-1">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-4 bg-white rounded-2xl shadow-sm group-hover:scale-110 transition-transform">
+                            <Upload className="w-8 h-8 text-gold-500" />
+                          </div>
+                          <div className="text-center">
+                            <span className="text-[11px] font-black text-navy-900 uppercase tracking-widest">Click para adjuntar</span>
+                            <p className="text-[9px] text-slate-400 font-bold mt-1">SOPORTA PDF, IMÁGENES, DOCUMENTOS</p>
+                          </div>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingUpload || !uploadFile}
+                className="w-full py-4 bg-navy-900 text-white font-black rounded-2xl hover:bg-navy-800 transition-all shadow-xl disabled:opacity-50 uppercase text-[10px] tracking-widest flex items-center justify-center gap-3"
+              >
+                {submittingUpload ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5 text-gold-400" />}
+                {submittingUpload ? 'Cargando y Auditando...' : 'Confirmar Carga al Expediente'}
+              </button>
+            </form>
+          </Modal>
+
+          {/* ANULACIÓN MODAL PROTOCOL (NOTES) */}
           <Modal
             isOpen={isDeleteNoteOpen}
             onClose={() => setIsDeleteNoteOpen(false)}
-            title="Protocolo de Anulación de Registro"
+            title="Protocolo de Anulación de Registro (Nota)"
           >
             <form onSubmit={handleConfirmDeletion} className="space-y-6">
               <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex items-center gap-3 text-red-700 text-[10px] font-black uppercase tracking-widest">
@@ -689,7 +953,7 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
                   required
                   rows={4}
                   className="w-full px-4 py-4 bg-white border border-red-100 rounded-2xl outline-none font-medium text-sm focus:border-red-500 transition-colors"
-                  placeholder="Explique detalladamente por qué anula este avance juríidico..."
+                  placeholder="Explique detalladamente por qué anula este avance jurídico..."
                   value={deletionReason}
                   onChange={e => setDeletionReason(e.target.value)}
                 />
@@ -731,6 +995,69 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
             </form>
           </Modal>
 
+          {/* ANULACIÓN MODAL PROTOCOL (DOCUMENTS) */}
+          <Modal
+            isOpen={isDeleteDocOpen}
+            onClose={() => setIsDeleteDocOpen(false)}
+            title="Protocolo de Anulación de Documento"
+          >
+            <form onSubmit={handleConfirmDocDeletion} className="space-y-6">
+              <div className="p-4 bg-red-50 rounded-2xl border border-red-100 flex items-center gap-3 text-red-700 text-[10px] font-black uppercase tracking-widest">
+                <AlertTriangle className="shrink-0 w-5 h-5 text-red-500" />
+                El archivo será movido a CUARENTENA (ELIMINADOS) y auditado permanentemente.
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-navy-900 ml-1 uppercase tracking-widest text-red-600">JUSTIFICACIÓN TÉCNICA DE ELIMINACIÓN</label>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
+                  <p className="text-[10px] text-navy-900 font-bold uppercase truncate">Documento: {docToDelete?.fileName}</p>
+                </div>
+                <textarea
+                  required
+                  rows={4}
+                  className="w-full px-4 py-4 bg-white border border-red-100 rounded-2xl outline-none font-medium text-sm focus:border-red-500 transition-colors"
+                  placeholder="Explique el motivo de la anulación del folio..."
+                  value={deletionReason}
+                  onChange={e => setDeletionReason(e.target.value)}
+                />
+              </div>
+
+              <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-navy-900" />
+                    <span className="text-[10px] font-black uppercase text-navy-900">Firma de Auditor</span>
+                  </div>
+                  <button type="button" onClick={generateCode} className="p-1.5 hover:bg-white rounded-lg transition-colors text-slate-400 hover:text-navy-900">
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                </div>
+
+                <div className="flex flex-col items-center gap-3">
+                  <div className="px-8 bg-white border-2 border-navy-900 rounded-2xl shadow-inner text-2xl font-black tracking-[0.5em] text-navy-900 select-none font-mono">
+                    {verificationCode}
+                  </div>
+                  <input
+                    type="text"
+                    className={`w-full bg-white border-2 rounded-2xl text-center font-black text-lg outline-none transition-all ${userCodeInput.toUpperCase() === verificationCode ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 focus:border-navy-900'}`}
+                    placeholder="Código de confirmación..."
+                    value={userCodeInput}
+                    onChange={e => setUserCodeInput(e.target.value.toUpperCase())}
+                    maxLength={6}
+                  />
+                </div>
+              </div>
+
+              <button
+                disabled={submittingDeletion || userCodeInput.toUpperCase() !== verificationCode || !deletionReason.trim()}
+                className={`w-full py-5 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all ${userCodeInput.toUpperCase() === verificationCode && deletionReason.trim() ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+              >
+                {submittingDeletion ? <Loader2 className="animate-spin w-5 h-5" /> : (userCodeInput.toUpperCase() === verificationCode && deletionReason.trim() ? <UserX className="w-5 h-5" /> : 'DATOS REQUERIDOS')}
+                {!submittingDeletion && 'EJECUTAR ANULACIÓN Y CUARENTENA'}
+              </button>
+            </form>
+          </Modal>
+
           <Modal isOpen={isStatusOpen} onClose={() => setIsStatusOpen(false)} title="Actualizar Estado Jurídico">
             <form onSubmit={handleStatusChange} className="space-y-6">
               <div className="p-4 bg-navy-50 rounded-2xl border border-navy-100 flex items-center gap-3 text-navy-700 text-xs font-bold uppercase tracking-tighter"><Clock className="shrink-0 w-4 h-4" /> Define el nuevo hito del expediente.</div>
@@ -760,13 +1087,13 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
                 </div>
 
                 <div className="flex flex-col items-center gap-3">
-                  <div className="py-3 px-8 bg-white border-2 border-navy-900 rounded-2xl shadow-inner text-2xl font-black tracking-[0.5em] text-navy-900 select-none font-mono">
+                  <div className="px-8 bg-white border-2 border-navy-900 rounded-2xl shadow-inner text-2xl font-black tracking-[0.5em] text-navy-900 select-none font-mono">
                     {verificationCode}
                   </div>
                   <p className="text-[9px] font-bold text-slate-400 uppercase text-center">Digita el código superior para confirmar la actuación</p>
                   <input
                     type="text"
-                    className={`w-full p-4 bg-white border-2 rounded-2xl text-center font-black text-lg outline-none transition-all ${userCodeInput.toUpperCase() === verificationCode ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 focus:border-navy-900'}`}
+                    className={`w-full bg-white border-2 rounded-2xl text-center font-black text-lg outline-none transition-all ${userCodeInput.toUpperCase() === verificationCode ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 focus:border-navy-900'}`}
                     placeholder="Escribe el código aquí..."
                     value={userCodeInput}
                     onChange={e => setUserCodeInput(e.target.value.toUpperCase())}
@@ -786,7 +1113,21 @@ const CaseDetailsSidebar = ({ isOpen, onClose, selectedCase, onUpdate }: any) =>
           </Modal>
 
           <Modal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} title="Vincular Consulta Externa">
-            <form onSubmit={handleStatusChange} className="space-y-6">
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setSubmittingLink(true);
+              try {
+                await api.post(`/cases/${selectedCase.id}/links`, linkData);
+                setIsLinkModalOpen(false);
+                setLinkData({ title: '', url: '' });
+                onUpdate(selectedCase.id);
+                Swal.fire({ icon: 'success', title: 'Vínculo creado', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+              } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Error al crear vínculo' });
+              } finally {
+                setSubmittingLink(false);
+              }
+            }} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-navy-900 ml-1 uppercase tracking-widest">Nombre de la Consulta</label>
                 <input required className="w-full px-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none font-bold" placeholder="Ejem: Rama Judicial - Consulta de Procesos" value={linkData.title} onChange={e => setLinkData({ ...linkData, title: e.target.value })} />

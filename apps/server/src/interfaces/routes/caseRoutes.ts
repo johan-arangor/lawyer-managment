@@ -7,6 +7,8 @@ const router = Router();
 const caseController = new CaseController();
 const upload = multer({ storage: multer.memoryStorage() });
 
+router.post('/public-status', caseController.getPublicStatus.bind(caseController));
+
 // All case routes require authentication
 router.use(authMiddleware);
 
@@ -17,6 +19,7 @@ router.post('/', authorize(['ADMIN', 'LAWYER']), caseController.create.bind(case
 router.put('/:id', authorize(['ADMIN', 'LAWYER']), caseController.update.bind(caseController));
 router.delete('/:id', authorize(['ADMIN']), caseController.delete.bind(caseController));
 router.post('/:id/documents', upload.single('file'), caseController.upload.bind(caseController));
+router.delete('/:id/documents/:documentId', authorize(['ADMIN']), caseController.deleteDocument.bind(caseController));
 router.post('/:id/notes', caseController.addNote.bind(caseController));
 router.delete('/:id/notes/:noteId', authorize(['ADMIN']), caseController.deleteNote.bind(caseController));
 router.post('/:id/links', caseController.addLink.bind(caseController));
