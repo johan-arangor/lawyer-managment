@@ -1,8 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './prisma';
 import { ICaseRepository } from '../domain/interfaces/ICaseRepository';
 
 export class PrismaCaseRepository implements ICaseRepository {
-  private prisma = new PrismaClient();
+  private prisma = prisma;
 
   async save(caseData: any): Promise<any> {
     const { followUpLinks, lawyerId, clientId, ...rest } = caseData;

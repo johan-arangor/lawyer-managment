@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../infrastructure/prisma';
 import { GoogleDriveProvider } from '../../infrastructure/GoogleDriveProvider';
 import { EmailProvider } from '../../infrastructure/EmailProvider';
 import { UploadDocumentUseCase } from '../../application/use-cases/UploadDocumentUseCase';
@@ -7,7 +7,6 @@ import path from 'path';
 import fs from 'fs';
 import { Readable } from 'stream';
 
-const prisma = new PrismaClient();
 const storageProvider = new GoogleDriveProvider();
 const emailProvider = new EmailProvider();
 

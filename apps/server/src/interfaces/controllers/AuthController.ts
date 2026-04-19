@@ -1,11 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../../infrastructure/prisma';
 import { EmailProvider } from '../../infrastructure/EmailProvider';
 
-const prisma = new PrismaClient();
 const emailProvider = new EmailProvider();
 
 export class AuthController {
