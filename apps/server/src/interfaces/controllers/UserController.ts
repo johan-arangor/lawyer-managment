@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { PrismaClient, Role, DocumentType } from '@prisma/client';
+import { Role, DocumentType } from '@prisma/client';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import { prisma } from '../../infrastructure/prisma';
 import { EmailProvider } from '../../infrastructure/EmailProvider';
 
-const prisma = new PrismaClient();
 const emailProvider = new EmailProvider();
 
 export class UserController {
