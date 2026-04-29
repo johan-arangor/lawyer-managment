@@ -145,3 +145,7 @@ dist
 
 #agents
 .agents
+
+#file deploy zip
+apps/server/dist.zip
+apps/client/dist.zip
