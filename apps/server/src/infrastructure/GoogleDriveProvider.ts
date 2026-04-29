@@ -5,14 +5,32 @@ export class GoogleDriveProvider implements IStorageProvider {
   private drive;
 
   constructor() {
-    const auth = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
+    let auth;
 
-    auth.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-    });
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+      try {
+        const key = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+        auth = new google.auth.JWT(
+          key.client_email,
+          undefined,
+          key.private_key,
+          ['https://www.googleapis.com/auth/drive']
+        );
+      } catch (err) {
+        console.error('Error parsing GOOGLE_SERVICE_ACCOUNT_KEY, falling back to OAuth2');
+      }
+    }
+
+    if (!auth) {
+      auth = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET
+      );
+
+      auth.setCredentials({
+        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+      });
+    }
 
     this.drive = google.drive({ version: 'v3', auth });
   }
@@ -56,9 +74,9 @@ export class GoogleDriveProvider implements IStorageProvider {
       }
 
       return rootFolderId;
-    } catch (error) {
-      console.error('Google Drive Create Folder Error:', error);
-      throw new Error('Storage service unavailable');
+    } catch (error: any) {
+      console.error('Google Drive Create Folder Error:', error?.response?.data || error);
+      throw new Error(`Storage service unavailable: ${error?.message || 'Unknown error'}`);
     }
   }
 
@@ -108,9 +126,9 @@ export class GoogleDriveProvider implements IStorageProvider {
       }
 
       return file.data.id;
-    } catch (error) {
-      console.error('Google Drive Upload File Error:', error);
-      throw new Error('Storage service unavailable');
+    } catch (error: any) {
+      console.error('Google Drive Upload File Error:', error?.response?.data || error);
+      throw new Error(`Storage service unavailable: ${error?.message || 'Unknown error'}`);
     }
   }
 

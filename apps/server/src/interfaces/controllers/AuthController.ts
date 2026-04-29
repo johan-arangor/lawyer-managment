@@ -13,6 +13,10 @@ export class AuthController {
       const { email, password } = req.body;
       const user = await prisma.user.findUnique({ where: { email } });
 
+      if (!user?.hasPrivateAreaAccess) {
+        return res.status(401).json({ error: 'Acceso denegado. Su cuenta requiere activación por parte de un administrador.' });
+      }
+
       if (!user || !user.isActive) {
         return res.status(401).json({ error: 'Credenciales inválidas o cuenta desactivada' });
       }
@@ -34,6 +38,40 @@ export class AuthController {
 
       const { password: _, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword, token });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async register(req: Request, res: Response) {
+    try {
+      const { email, name, phone, phoneCode } = req.body;
+      const existing = await prisma.user.findUnique({ where: { email } });
+
+      if (existing) {
+        return res.status(400).json({ error: 'Este correo electrónico ya está registrado' });
+      }
+
+      const confirmationToken = crypto.randomBytes(32).toString('hex');
+      // Contraseña temporal aleatoria que será cambiada al confirmar
+      const tempPassword = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+
+      await prisma.user.create({
+        data: {
+          email,
+          name,
+          phone,
+          phoneCode: phoneCode || '+57',
+          password: tempPassword,
+          confirmationToken,
+          role: 'CLIENT',
+          isConfirmed: false
+        }
+      });
+
+      await emailProvider.sendConfirmationEmail(email, name, confirmationToken);
+
+      res.status(201).json({ message: 'Registro exitoso. Por favor verifica tu correo para activar tu cuenta.' });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
