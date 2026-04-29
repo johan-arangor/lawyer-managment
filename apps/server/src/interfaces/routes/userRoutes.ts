@@ -8,6 +8,7 @@ const userController = new UserController();
 router.use(authMiddleware);
 
 router.get('/', authorize(['ADMIN', 'LAWYER']), userController.getAll.bind(userController));
+router.get('/lawyers', authorize(['ADMIN', 'LAWYER']), userController.getPublicLawyers.bind(userController));
 router.get('/clients', authorize(['ADMIN', 'LAWYER']), userController.getClients.bind(userController));
 router.post('/', authorize(['ADMIN', 'LAWYER']), userController.create.bind(userController));
 router.post('/:id/resend-confirmation', authorize(['ADMIN']), userController.resendConfirmation.bind(userController));

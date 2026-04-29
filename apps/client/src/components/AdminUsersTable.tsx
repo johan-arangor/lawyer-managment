@@ -148,6 +148,27 @@ const AdminUsersTable = ({ roleFilter, hideFolder = false }: { roleFilter: 'LAWY
     setPhoneCode('+57');
   };
 
+  const togglePrivateAccess = async (u: any) => {
+    try {
+      const newValue = !u.hasPrivateAreaAccess;
+      await api.put(`/users/${u.id}`, { hasPrivateAreaAccess: newValue });
+      
+      setUsers(prev => prev.map(user => 
+        user.id === u.id ? { ...user, hasPrivateAreaAccess: newValue } : user
+      ));
+
+      Swal.fire({
+        icon: 'success',
+        title: newValue ? 'Acceso Habilitado' : 'Acceso Restringido',
+        text: newValue ? 'El cliente ahora puede ver sus expedientes en la web.' : 'El acceso al área privada ha sido revocado.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (err) {
+      Swal.fire('Error', 'No se pudo actualizar el acceso web', 'error');
+    }
+  };
+
   const openEditModal = (u: any) => {
     setSelectedUser(u);
     // Extraer indicativo si existe (KISS simplificado)
@@ -287,6 +308,15 @@ const AdminUsersTable = ({ roleFilter, hideFolder = false }: { roleFilter: 'LAWY
                 <td className="px-8 py-6 text-right space-x-1">
                   {!hideFolder && (
                     <button onClick={() => openCasesModal(u)} className="p-3 text-gold-600 hover:bg-gold-50 rounded-2xl transition-all" title="Ver Expedientes"><Folder className="w-5 h-5" /></button>
+                  )}
+                  {roleFilter === 'CLIENT' && (authUser.role === 'ADMIN' || authUser.role === 'LAWYER') && (
+                    <button 
+                      onClick={() => togglePrivateAccess(u)} 
+                      className={`p-3 rounded-2xl transition-all ${u.hasPrivateAreaAccess ? 'text-emerald-600 bg-emerald-50 shadow-inner' : 'text-slate-300 hover:bg-slate-50'}`}
+                      title={u.hasPrivateAreaAccess ? "Acceso Web Habilitado" : "Habilitar Acceso Web"}
+                    >
+                      <Globe className="w-5 h-5" />
+                    </button>
                   )}
                   {authUser.role === 'ADMIN' && (
                     <>

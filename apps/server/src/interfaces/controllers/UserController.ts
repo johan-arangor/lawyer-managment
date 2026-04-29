@@ -260,4 +260,18 @@ export class UserController {
       res.status(500).json({ error: err.message });
     }
   }
+
+  async getPublicLawyers(req: Request, res: Response) {
+    try {
+      const lawyers = await prisma.user.findMany({
+        where: { role: 'LAWYER', isActive: true },
+        select: { id: true, name: true }
+      });
+      res.json(lawyers);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Error al obtener abogados' });
+    }
+  }
 }
+
+

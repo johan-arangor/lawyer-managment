@@ -12,9 +12,12 @@ export class RegisterUseCase {
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
+    const hasPrivateAreaAccess = data.role === 'ADMIN' || data.role === 'LAWYER';
+
     const user = await this.userRepository.create({
       ...data,
       password: hashedPassword,
+      hasPrivateAreaAccess
     });
 
     const { password, ...userWithoutPassword } = user;

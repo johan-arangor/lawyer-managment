@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, FileText, User, Plus, LogOut, Search, DollarSign, Shield, TrendingUp, BarChart3, Wallet, ArrowUpRight, CheckCircle2, Clock } from 'lucide-react';
+import { Briefcase, FileText, User, Plus, LogOut, Search, DollarSign, Shield, TrendingUp, BarChart3, Wallet, ArrowUpRight, CheckCircle2, Clock, Calendar, Settings, ListChecks } from 'lucide-react';
 import api from '../api/axios';
 import CreateCaseModal from '../components/CreateCaseModal';
 import CaseDetailsSidebar from '../components/CaseDetailsSidebar';
 import AdminUsersTable from '../components/AdminUsersTable';
+import AdminServicesTable from '../components/AdminServicesTable';
+import LawyerAgendaView from '../components/LawyerAgendaView';
+import AvailabilityConfig from '../components/AvailabilityConfig';
 import ProfileModal from '../components/ProfileModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -26,7 +29,7 @@ const DashboardPage = () => {
   const [cases, setCases] = useState<Case[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState('cases'); // 'cases', 'clients', 'income', 'users'
+  const [activeView, setActiveView] = useState('cases'); // 'cases', 'clients', 'income', 'users', 'agenda', 'services', 'availability'
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<any>(null);
@@ -112,16 +115,39 @@ const DashboardPage = () => {
           </button>
 
           {(user.role === 'ADMIN' || user.role === 'LAWYER') && (
-            <button
-              onClick={() => setActiveView('clients')}
-              className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition-all ${activeView === 'clients' ? 'bg-gold-400 text-navy-900 shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
+            <>
+              <button
+                onClick={() => setActiveView('agenda')}
+                className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition-all ${activeView === 'agenda' ? 'bg-gold-400 text-navy-900 shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
+              >
+                <Calendar className="w-5 h-5" /> Mi Agenda
+              </button>
+              <button
+                onClick={() => setActiveView('clients')}
+                className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition-all ${activeView === 'clients' ? 'bg-gold-400 text-navy-900 shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
+              >
+                <User className="w-5 h-5" /> Mis Clientes
+              </button>
+            </>
+          )}
+
+          {user.role === 'LAWYER' && (
+             <button
+              onClick={() => setActiveView('availability')}
+              className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition-all ${activeView === 'availability' ? 'bg-gold-400 text-navy-900 shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
             >
-              <User className="w-5 h-5" /> Mis Clientes
+              <Settings className="w-5 h-5" /> Mi Horario
             </button>
           )}
 
           {user.role === 'ADMIN' && (
             <>
+              <button
+                onClick={() => setActiveView('services')}
+                className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition-all ${activeView === 'services' ? 'bg-gold-400 text-navy-900 shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
+              >
+                <ListChecks className="w-5 h-5" /> Servicios
+              </button>
               <button
                 onClick={() => setActiveView('lawyers')}
                 className={`flex items-center gap-3 w-full p-3 rounded-xl font-medium transition-all ${activeView === 'lawyers' ? 'bg-gold-400 text-navy-900 shadow-lg' : 'hover:bg-white/5 text-slate-300'}`}
@@ -164,7 +190,10 @@ const DashboardPage = () => {
               {activeView === 'cases' ? 'Gestión de Procesos' :
                 activeView === 'clients' ? 'Directorio de Clientes' :
                   activeView === 'lawyers' ? 'Cuerpo Jurídico' : 
-                    activeView === 'users_all' ? 'Gestión General de Usuarios' : 'Panel Financiero'}
+                    activeView === 'users_all' ? 'Gestión General de Usuarios' : 
+                      activeView === 'agenda' ? 'Gestión de Agenda' :
+                        activeView === 'services' ? 'Servicios Ofrecidos' :
+                          activeView === 'availability' ? 'Configuración de Horario' : 'Panel Financiero'}
             </h1>
             {activeView === 'cases' && (
               <div className="flex bg-slate-100 p-1 rounded-xl">
@@ -320,6 +349,12 @@ const DashboardPage = () => {
                <AdminUsersTable roleFilter="LAWYER" hideFolder={true} />
                <AdminUsersTable roleFilter="CLIENT" hideFolder={true} />
             </div>
+          ) : activeView === 'agenda' ? (
+            <LawyerAgendaView />
+          ) : activeView === 'services' ? (
+            <AdminServicesTable />
+          ) : activeView === 'availability' ? (
+            <AvailabilityConfig />
           ) : (
             <div className="space-y-6 animate-in fade-in duration-500">
               {/* Financial View with Summary Mini-Cards */}
