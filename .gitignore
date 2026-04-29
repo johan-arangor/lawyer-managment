@@ -137,3 +137,11 @@ dist
 
 # arvhivos map
 *.map
+
+#environments
+.env
+.env.local
+.env.example
+
+#agents
+.agents
