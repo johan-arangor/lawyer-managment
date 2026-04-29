@@ -40,6 +40,7 @@ model User {
   
   // Información de Contacto
   phone            String?        // Celular Principal (Obligatorio)
+  phoneCode        String?        @default("+57")
   phoneSecondary   String?        // Celular 2
   landline         String?        // Teléfono Fijo
   address          String?
@@ -52,6 +53,7 @@ model User {
   // Control de Acceso y Verificación
   isConfirmed      Boolean        @default(false)
   isActive         Boolean        @default(true) // Para borrado lógico
+  hasPrivateAreaAccess Boolean    @default(false)
   confirmationToken String?       @unique
   resetToken       String?        @unique
   tokenExpires     DateTime?
@@ -70,6 +72,11 @@ model User {
   uploadedDocs     DocumentLog[]   @relation("UploadedDocs")
   deletedDocs      DocumentLog[]   @relation("DeletedDocs")
   emailLogs     EmailLog[]
+  
+  // Appointment System
+  appointmentsAsLawyer Appointment[] @relation("LawyerAppointments")
+  availabilities       LawyerAvailability[]
+  services             LegalService[]      @relation("LawyerServices")
 }
 
 enum DocumentType {
@@ -77,6 +84,63 @@ enum DocumentType {
   TI
   CE
   NIT
+}
+
+model LegalService {
+  id              String        @id @default(uuid())
+  name            String
+  durationMinutes Int           @default(60)
+  requiredDocs    String?       @db.Text
+  isActive        Boolean       @default(true)
+  appointments    Appointment[]
+  lawyers         User[]        @relation("LawyerServices")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  clientEmail     String
+  clientName      String
+  clientLastName  String
+  clientPhone     String
+  clientPhoneCode String            @default("+57")
+  
+  status          AppointmentStatus @default(PENDING)
+  scheduledAt     DateTime
+  
+  serviceId       String
+  service         LegalService      @relation(fields: [serviceId], references: [id])
+  
+  lawyerId        String?
+  lawyer          User?             @relation("LawyerAppointments", fields: [lawyerId], references: [id])
+  
+  notes           String?           @db.Text
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  MODIFIED
+}
+
+model LawyerAvailability {
+  id        String   @id @default(uuid())
+  lawyerId  String
+  lawyer    User     @relation(fields: [lawyerId], references: [id])
+  dayOfWeek Int      // 0-6 (Sunday-Saturday)
+  startTime String   // "HH:mm"
+  endTime   String   // "HH:mm"
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([lawyerId, dayOfWeek, startTime, endTime])
 }
 
 model Case {
@@ -192,3 +256,4 @@ model StatusHistory {
   author    User       @relation(fields: [authorId], references: [id])
   createdAt DateTime   @default(now())
 }
+
