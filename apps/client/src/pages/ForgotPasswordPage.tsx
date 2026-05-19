@@ -15,7 +15,7 @@ const ForgotPasswordPage = () => {
     setStatus(null);
 
     try {
-      await api.post('/auth/request-password-reset', { email });
+      await api.post('/auth/request-password-reset', { email, source: 'app' });
       setStatus({ 
         type: 'success', 
         msg: 'Si el correo está registrado, recibirás un enlace de recuperación en unos instantes.' 

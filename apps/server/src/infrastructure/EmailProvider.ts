@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { prisma } from './prisma';
 
 export class EmailProvider {
   private transporter: nodemailer.Transporter;
@@ -15,8 +16,15 @@ export class EmailProvider {
     });
   }
 
-  async sendConfirmationEmail(email: string, name: string, token: string) {
-    const baseUrl = process.env.FRONTEND_URL;
+  private getBaseUrl(source?: string): string {
+    if (source === 'web') {
+      return process.env.FRONTEND_URL_WEB || 'http://localhost:5173';
+    }
+    return process.env.FRONTEND_URL || 'http://localhost:5175';
+  }
+
+  async sendConfirmationEmail(email: string, name: string, token: string, source?: string) {
+    const baseUrl = this.getBaseUrl(source);
     const url = `${baseUrl}/#/confirmar-cuenta?token=${token}`;
 
     const mailOptions = {
@@ -45,8 +53,8 @@ export class EmailProvider {
     return this.sendMail(mailOptions);
   }
 
-  async sendResetPasswordEmail(email: string, name: string, token: string) {
-    const baseUrl = process.env.FRONTEND_URL;
+  async sendResetPasswordEmail(email: string, name: string, token: string, source?: string) {
+    const baseUrl = this.getBaseUrl(source);
     const url = `${baseUrl}/#/reset-password?token=${token}`;
 
     const mailOptions = {
@@ -241,10 +249,6 @@ export class EmailProvider {
   }
 
   private async sendMail(options: any) {
-
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-
     let attempts = 0;
     const maxAttempts = 3;
     let lastError = '';

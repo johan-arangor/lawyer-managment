@@ -27,7 +27,7 @@ const ConfirmAccountPage = () => {
 
     setLoading(true);
     try {
-      await api.post('/auth/confirm-account', { token, password });
+      await api.post('/auth/confirm-account', { token, password, source: 'app' });
       setStatus({ type: 'success', msg: '¡Cuenta activada! Ya puedes ingresar al sistema.' });
       setTimeout(() => navigate('/login'), 3000);
     } catch (err: any) {

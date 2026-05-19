@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { Role, DocumentType } from '@prisma/client';
 import crypto from 'crypto';
-import bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { prisma } from '../../infrastructure/prisma';
 import { EmailProvider } from '../../infrastructure/EmailProvider';
 
@@ -105,7 +105,8 @@ export class UserController {
           contactEmail2,
           password: hashedPassword,
           confirmationToken,
-          isConfirmed: false
+          isConfirmed: false,
+          hasPrivateAreaAccess: role === 'ADMIN' || role === 'LAWYER'
         }
       });
 
