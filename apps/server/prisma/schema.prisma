@@ -1,7 +1,7 @@
 generator client {
   provider = "prisma-client-js"
   engineType = "binary"
-  binaryTargets = ["native", "debian-openssl-1.1.x"]
+  binaryTargets = ["native", "debian-openssl-1.1.x", "linux-musl-openssl-3.0.x", "rhel-openssl-1.1.x"]
 }
 
 datasource db {
@@ -55,6 +55,7 @@ model User {
   isActive         Boolean        @default(true) // Para borrado lógico
   hasPrivateAreaAccess Boolean    @default(false)
   confirmationToken String?       @unique
+  confirmationExpires DateTime?
   resetToken       String?        @unique
   tokenExpires     DateTime?
   

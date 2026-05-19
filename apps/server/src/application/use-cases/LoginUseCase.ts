@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { IUserRepository } from '../../domain/interfaces/IUserRepository';
 
@@ -17,7 +17,7 @@ export class LoginUseCase {
     }
     console.log('user has private area access:', user.hasPrivateAreaAccess);
     if (!user.hasPrivateAreaAccess) {
-      throw new Error('Access denied. Your account is pending authorization.');
+      throw new Error('Acceso denegado. Su cuenta requiere activación por parte de un administrador.');
     }
 
     const token = jwt.sign(

@@ -1,7 +1,10 @@
-
 import { PrismaClient } from '@prisma/client';
 
-// Instancia única (Singleton) optimizada para el entorno
+// Singleton para el cliente de Prisma
+// Usamos engineType "library" en el esquema para estabilidad en Hostinger
+
 export const prisma = new PrismaClient({
-  log: ['error', 'warn'],
+  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error']
 });
+
+export default prisma;

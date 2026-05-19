@@ -3,7 +3,8 @@
     "target": "ES2020",
     "module": "CommonJS",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
+    "allowJs": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,12 +13,12 @@
     "experimentalDecorators": true,
     "baseUrl": ".",
     "paths": {
-      "@domain/*": ["src/domain/*"],
-      "@application/*": ["src/application/*"],
-      "@infrastructure/*": ["src/infrastructure/*"],
-      "@interfaces/*": ["src/interfaces/*"]
+      "@domain/*": ["application/domain/*", "src/domain/*"],
+      "@application/*": ["application/*", "src/application/*"],
+      "@infrastructure/*": ["infrastructure/*", "src/infrastructure/*"],
+      "@interfaces/*": ["interfaces/*", "src/interfaces/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.spec.ts"]
+  "include": ["src/**/*", "application/**/*", "domain/**/*", "infrastructure/**/*", "interfaces/**/*", "prisma/seed.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts", "dist"]
 }

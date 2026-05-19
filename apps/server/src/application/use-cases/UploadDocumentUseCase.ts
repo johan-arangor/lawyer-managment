@@ -1,9 +1,9 @@
 import { IStorageProvider } from '../../domain/interfaces/IStorageProvider';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../infrastructure/prisma';
 import { Readable } from 'stream';
 
 export class UploadDocumentUseCase {
-  private prisma = new PrismaClient();
+  private prisma = prisma;
 
   constructor(private storageProvider: IStorageProvider) {}
 

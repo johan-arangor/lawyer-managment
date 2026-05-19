@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { IUserRepository } from '../../domain/interfaces/IUserRepository';
 
 export class RegisterUseCase {
