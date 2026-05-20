@@ -6,7 +6,7 @@
     "predev": "npx kill-port 5176",
     "prebuild": "npx kill-port 5176",
     "dev": "ts-node-dev -r dotenv/config --respawn --transpile-only src/interfaces/index.ts dotenv_config_path=.env.develop",
-    "build": "npx prisma generate && npx tsc -p tsconfig.json && node -e \"require('dotenv').config({path:'.env.production'}); const {execSync}=require('child_process'); console.log('🔄 Sincronizando BD...'); execSync('npx prisma db push --accept-data-loss', {stdio:'inherit', env: {...process.env, PRISMA_CLIENT_ENGINE_TYPE: 'binary'}}); console.log('🌱 Ejecutando Seed...'); execSync('node prisma/seed.js', {stdio:'inherit', env: {...process.env, PRISMA_CLIENT_ENGINE_TYPE: 'binary'}});\" && node -e \"const fs=require('fs'); const path=require('path'); const d=path.join('dist'); const dp=path.join(d,'prisma'); if(!fs.existsSync(dp))fs.mkdirSync(dp,{recursive:true}); if(fs.existsSync(path.join('prisma','schema.prisma'))) fs.copyFileSync(path.join('prisma','schema.prisma'),path.join(dp,'schema.prisma')); if(fs.existsSync('.env.production')) fs.copyFileSync('.env.production',path.join(d,'.env')); fs.copyFileSync('package.json',path.join(d,'package.json')); fs.copyFileSync('tsconfig.json',path.join(d,'tsconfig.json')); console.log('✅ Build completado exitosamente')\"",
+    "build": "node build.js",
     "start": "node dist/interfaces/index.js",
     "prisma:migrate": "prisma migrate deploy",
     "prisma:generate": "prisma generate",

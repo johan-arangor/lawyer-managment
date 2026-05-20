@@ -46,15 +46,15 @@ El build se ejecuta automáticamente y genera:
 
 1. Acceder a: `https://hpanel.hostinger.com/websites/api.mienlacejuridico.com/deployments`
 
-2. Subir la carpeta `dist/` completa:
-   - La carpeta debe contener TODOS los archivos generados
-   - El `.env` debe estar presente en la raíz
-   - `interfaces/index.js` es el punto de entrada
+2. Subir el contenido de la carpeta `dist/` completa a la raíz del servidor:
+   - La carpeta contiene ahora los archivos de arranque automáticos (`server.js`, `app.js`, `index.js`) compatibles con Phusion Passenger y LiteSpeed de Hostinger.
+   - El `.env` debe estar presente en la raíz.
+   - El `package.json` generado en `dist/` está optimizado para arrancar con `node server.js`.
 
 3. Hostinger ejecutará automáticamente:
    ```bash
-   npm install
-   npm start
+   npm install       # Ejecuta el postinstall "npx prisma generate" para compilar el binario Linux
+   npm start         # Inicia la aplicación con "node server.js"
    ```
 
 ### Paso 3: Verificar conexión a BD
