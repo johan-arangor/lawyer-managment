@@ -1,6 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+
+// --- DEBUG HOSTINGER ---
+process.on('uncaughtException', (err) => {
+  fs.appendFileSync('hostinger-error.log', `[${new Date().toISOString()}] Uncaught Exception: ${err.message}\n${err.stack}\n`);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  fs.appendFileSync('hostinger-error.log', `[${new Date().toISOString()}] Unhandled Rejection at: ${promise}, reason: ${reason}\n`);
+});
+// -----------------------
 
 import { errorHandler } from './middlewares/errorHandler';
 import authRoutes from './routes/authRoutes';
@@ -10,9 +23,6 @@ import legalServiceRoutes from './routes/legalServiceRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
 import availabilityRoutes from './routes/availabilityRoutes';
 import { UserController } from './controllers/UserController';
-
-import path from 'path';
-import fs from 'fs';
 
 // Función para asegurar permisos en los binarios de Prisma (Hostinger FIX)
 const fixPrismaPermissions = () => {
@@ -35,7 +45,7 @@ const fixPrismaPermissions = () => {
 
 fixPrismaPermissions();
 
-// Cargar variables de entorno prioritarias
+// Cargar variables de entorno prioritarias (Búsqueda robusta para Hostinger/Passenger)
 const envFiles = [
   '.env',
   '.env.production',
@@ -43,10 +53,19 @@ const envFiles = [
 ];
 
 envFiles.forEach((file) => {
-  const envPath = path.resolve(process.cwd(), file);
-  if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath, override: true });
-    console.log(`✅ [Config] Variables cargadas desde: ${file}`);
+  const possiblePaths = [
+    path.resolve(process.cwd(), file),
+    path.resolve(__dirname, file),
+    path.resolve(__dirname, '../', file),
+    path.resolve(__dirname, '../../', file)
+  ];
+
+  for (const envPath of possiblePaths) {
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath, override: true });
+      console.log(`✅ [Config] Variables cargadas desde: ${envPath}`);
+      break;
+    }
   }
 });
 
@@ -56,7 +75,19 @@ const app = express();
 const port = process.env.PORT || 3000;
 const userController = new UserController();
 
-app.use(cors());
+// Configuración robusta de CORS para soportar preflight OPTIONS y credenciales en Hostinger
+const corsOptions = {
+  origin: function (origin: any, callback: any) {
+    // Permitir cualquier origen (dinámico para evitar el bloqueo de '*' en navegadores estrictos)
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Access-Control-Allow-Origin', 'source']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Public lawyers list
@@ -129,29 +160,28 @@ const startServer = async () => {
     console.log('🔄 Verificando conexión a la base de datos...');
     await prisma.$connect();
     console.log('✅ CONECTADO EXITOSAMENTE A LA BASE DE DATOS MYSQL');
-    
-    const server = app.listen(port, () => {
-      console.log(`🚀 Server running at http://localhost:${port}`);
-    });
-
-    // Manejo de cierre elegante para liberar el puerto en reinicios (ts-node-dev)
-    process.on('SIGTERM', () => {
-      server.close(() => {
-        prisma.$disconnect();
-        process.exit(0);
-      });
-    });
-
-    process.on('SIGINT', () => {
-      server.close(() => {
-        prisma.$disconnect();
-        process.exit(0);
-      });
-    });
-  } catch (error) {
-    console.error('❌ FATAL: No se pudo conectar a la base de datos al arrancar.', error);
-    process.exit(1);
+  } catch (error: any) {
+    console.error('❌ ERROR AL ARRANCAR: No se pudo conectar a la base de datos al inicio.', error.message);
   }
+
+  const server = app.listen(port, () => {
+    console.log(`🚀 Server running at http://localhost:${port}`);
+  });
+
+  // Manejo de cierre elegante para liberar el puerto en reinicios (ts-node-dev)
+  process.on('SIGTERM', () => {
+    server.close(() => {
+      prisma.$disconnect();
+      process.exit(0);
+    });
+  });
+
+  process.on('SIGINT', () => {
+    server.close(() => {
+      prisma.$disconnect();
+      process.exit(0);
+    });
+  });
 };
 
 startServer();
