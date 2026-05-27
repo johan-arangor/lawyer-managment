@@ -25,7 +25,8 @@ export class EmailProvider {
 
   async sendConfirmationEmail(email: string, name: string, token: string, source?: string) {
     const baseUrl = this.getBaseUrl(source);
-    const url = `${baseUrl}/#/confirmar-cuenta?token=${token}`;
+    const path = source === 'web' ? 'confirmar-cuenta' : 'confirm-account';
+    const url = `${baseUrl}/#/${path}?token=${token}`;
 
     const mailOptions = {
       from: `"Enlace Jurídico" <${process.env.SMTP_USER || 'no-reply@enlacejuridico.com'}>`,

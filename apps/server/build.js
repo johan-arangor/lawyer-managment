@@ -17,14 +17,12 @@ function build() {
         console.log('📦 Generando cliente de Prisma...');
         execSync('npx prisma generate', { stdio: 'inherit' });
 
-        // 2. Sincronizar Base de Datos (Producción)
-        console.log('🔄 Sincronizando base de datos con el esquema...');
-        // Usamos --accept-data-loss para evitar bloqueos en el build automatizado
-        execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-
-        // 3. Ejecutar Semilla (Seed) de la Base de Datos
-        console.log('🌱 Ejecutando semilla (seed) de base de datos...');
-        execSync('node prisma/seed.js', { stdio: 'inherit' });
+        // Note: Database migration/synchronization and seeding have been removed from the build script 
+        // to prevent connection errors during deployment and avoid unintended data changes.
+        // If you need to run migrations or sync schemas, run them as separate deployment steps:
+        // - For migrations: npm run prisma:migrate (runs 'prisma migrate deploy')
+        // - For db push: npx prisma db push
+        // - For seeding: npm run db:seed
 
         // 4. Compilar TypeScript
         console.log('🏗️ Compilando TypeScript...');

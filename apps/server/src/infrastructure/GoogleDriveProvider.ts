@@ -10,10 +10,11 @@ export class GoogleDriveProvider implements IStorageProvider {
     if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
       try {
         const key = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+        const privateKey = key.private_key ? key.private_key.replace(/\\n/g, '\n') : undefined;
         auth = new google.auth.JWT(
           key.client_email,
           undefined,
-          key.private_key,
+          privateKey,
           ['https://www.googleapis.com/auth/drive']
         );
       } catch (err) {
