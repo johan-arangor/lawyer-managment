@@ -26,7 +26,9 @@ export class EmailProvider {
   async sendConfirmationEmail(email: string, name: string, token: string, source?: string) {
     const baseUrl = this.getBaseUrl(source);
     const path = source === 'web' ? 'confirmar-cuenta' : 'confirm-account';
-    const url = `${baseUrl}/#/${path}?token=${token}`;
+    const url = source === 'web'
+      ? `${baseUrl}/#/${path}?token=${token}`
+      : `${baseUrl}/${path}?token=${token}`;
 
     const mailOptions = {
       from: `"Enlace Jurídico" <${process.env.SMTP_USER || 'no-reply@enlacejuridico.com'}>`,
@@ -56,7 +58,9 @@ export class EmailProvider {
 
   async sendResetPasswordEmail(email: string, name: string, token: string, source?: string) {
     const baseUrl = this.getBaseUrl(source);
-    const url = `${baseUrl}/#/reset-password?token=${token}`;
+    const url = source === 'web'
+      ? `${baseUrl}/#/reset-password?token=${token}`
+      : `${baseUrl}/reset-password?token=${token}`;
 
     const mailOptions = {
       from: `"Enlace Jurídico" <${process.env.SMTP_USER || 'no-reply@enlacejuridico.com'}>`,

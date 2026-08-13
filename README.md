@@ -5,7 +5,7 @@ Sistema integral de gestión de casos judiciales, control de cartera y archivo d
 ## 🚀 Tecnologías
 - **Frontend:** React + Vite + Tailwind CSS
 - **Backend:** Node.js + Express + Prisma ORM
-- **Base de Datos:** PostgreSQL
+- **Base de Datos:** MySQL
 - **Almacenamiento:** Google Drive API (OAuth2)
 
 ---
@@ -50,7 +50,7 @@ El archivo `.env` en `apps/server` debe verse así:
 
 ```env
 PORT=3000
-DATABASE_URL="tu_url_de_postgresql"
+DATABASE_URL="mysql://usuario:contraseña@localhost:3306/nombre_base_datos"
 JWT_SECRET="una_clave_segura_aleatoria"
 
 # Google Drive Config
