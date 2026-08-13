@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "linux-musl-openssl-3.0.x", "rhel-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  LAWYER
+  CLIENT
+}
+
+enum FeeType {
+  FIXED
+  PERCENTAGE
+}
+
+enum CaseStatus {
+  PENDING
+  IN_PROGRESS
+  CLOSED
+}
+
+model User {
+  id               String         @id @default(uuid())
+  email            String         @unique
+  password         String
+  name             String
+  role             Role           @default(CLIENT)
+  
+  // Identidad Legal (KISS: Campos únicos y requeridos)
+  documentType     DocumentType   @default(CC)
+  documentNumber   String?        @unique
+  businessName     String?        // Obligatorio si documentType == NIT
+  
+  // Información de Contacto
+  phone            String?        // Celular Principal (Obligatorio)
+  phoneCode        String?        @default("+57")
+  phoneSecondary   String?        // Celular 2
+  landline         String?        // Teléfono Fijo
+  address          String?
+  
+  // Contacto de Emergencia / Respaldo
+  contactName2     String?
+  contactPhone2    String?
+  contactEmail2    String?
+  
+  // Control de Acceso y Verificación
+  isConfirmed      Boolean        @default(false)
+  isActive         Boolean        @default(true) // Para borrado lógico
+  hasPrivateAreaAccess Boolean    @default(false)
+  confirmationToken String?       @unique
+  confirmationExpires DateTime?
+  resetToken       String?        @unique
+  tokenExpires     DateTime?
+  
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relationships
+  casesAsLawyer Case[]         @relation("LawyerCases")
+  casesAsClient Case[]         @relation("ClientCases")
+  closedCases   Case[]         @relation("ClosedCases")
+  followUpNotes FollowUpNote[]
+  deletedNotes  FollowUpNote[] @relation("DeletedNotes")
+  statusHistory StatusHistory[]
+  payments      Payment[]       @relation("PaymentsRegistered")
+  uploadedDocs     DocumentLog[]   @relation("UploadedDocs")
+  deletedDocs      DocumentLog[]   @relation("DeletedDocs")
+  emailLogs     EmailLog[]
+  
+  // Appointment System
+  appointmentsAsLawyer Appointment[] @relation("LawyerAppointments")
+  availabilities       LawyerAvailability[]
+  services             LegalService[]      @relation("LawyerServices")
+}
+
+enum DocumentType {
+  CC
+  TI
+  CE
+  NIT
+}
+
+model LegalService {
+  id              String        @id @default(uuid())
+  name            String
+  durationMinutes Int           @default(60)
+  requiredDocs    String?       @db.Text
+  isActive        Boolean       @default(true)
+  appointments    Appointment[]
+  lawyers         User[]        @relation("LawyerServices")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  clientEmail     String
+  clientName      String
+  clientLastName  String
+  clientPhone     String
+  clientPhoneCode String            @default("+57")
+  
+  status          AppointmentStatus @default(PENDING)
+  scheduledAt     DateTime
+  
+  serviceId       String
+  service         LegalService      @relation(fields: [serviceId], references: [id])
+  
+  lawyerId        String?
+  lawyer          User?             @relation("LawyerAppointments", fields: [lawyerId], references: [id])
+  
+  notes           String?           @db.Text
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  MODIFIED
+}
+
+model LawyerAvailability {
+  id        String   @id @default(uuid())
+  lawyerId  String
+  lawyer    User     @relation(fields: [lawyerId], references: [id])
+  dayOfWeek Int      // 0-6 (Sunday-Saturday)
+  startTime String   // "HH:mm"
+  endTime   String   // "HH:mm"
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([lawyerId, dayOfWeek, startTime, endTime])
+}
+
+model Case {
+  id              String         @id @default(uuid())
+  title           String
+  caseNumber      String         @unique
+  fees            Decimal        @db.Decimal(15, 2)
+  feeType         FeeType        @default(FIXED)
+  paidBalance     Decimal        @default(0) @db.Decimal(15, 2)
+  description     String?        @db.Text
+  status          CaseStatus     @default(PENDING)
+  statusUpdatedAt DateTime       @default(now())
+  driveFolderId   String?
+  closedAt        DateTime?
+  closedById      String?
+  followUpLinks   FollowUpLink[]
+  followUpNotes   FollowUpNote[]
+  statusHistory   StatusHistory[]
+  payments        Payment[]
+  documents       DocumentLog[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relationships
+  lawyerId String
+  lawyer   User   @relation("LawyerCases", fields: [lawyerId], references: [id])
+  clientId String
+  client   User   @relation("ClientCases", fields: [clientId], references: [id])
+  closedBy User?  @relation("ClosedCases", fields: [closedById], references: [id])
+}
+
+model FollowUpLink {
+  id        String   @id @default(uuid())
+  title     String?
+  url       String   @db.Text
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model FollowUpNote {
+  id                String    @id @default(uuid())
+  title             String?
+  content           String    @db.Text
+  isVisibleByClient Boolean   @default(false)
+  caseId            String
+  case              Case      @relation(fields: [caseId], references: [id])
+  authorId          String
+  author            User      @relation(fields: [authorId], references: [id])
+  createdAt         DateTime  @default(now())
+  
+  // Audit details (Soft delete)
+  deletedAt       DateTime?
+  deletedById     String?
+  deletedBy       User?     @relation("DeletedNotes", fields: [deletedById], references: [id])
+  deletionReason  String?   @db.Text
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  amount        Decimal  @db.Decimal(15, 2)
+  method        String   @default("TRANSFERENCIA") // EFECTIVO, CONSIGNACION, TRANSFERENCIA
+  date          DateTime @default(now())
+  comprobanteId String?  // ID de archivo en Drive
+  
+  caseId        String
+  case          Case     @relation(fields: [caseId], references: [id])
+  
+  registeredById String?
+  registeredBy   User?     @relation("PaymentsRegistered", fields: [registeredById], references: [id])
+  
+  createdAt     DateTime @default(now())
+}
+
+model DocumentLog {
+  id          String   @id @default(uuid())
+  fileName    String
+  fileId      String
+  
+  // Soft Delete and Audit
+  deletedAt      DateTime?
+  deletedById    String?
+  deletedBy      User?     @relation("DeletedDocs", fields: [deletedById], references: [id])
+  deletionReason String?   @db.Text
+
+  uploadedById String
+  uploadedBy  User     @relation("UploadedDocs", fields: [uploadedById], references: [id])
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model EmailLog {
+  id          String   @id @default(uuid())
+  to          String
+  subject     String
+  status      String   // SENT, FAILED
+  error       String?  @db.Text
+  attempts    Int      @default(1)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model StatusHistory {
+  id        String     @id @default(uuid())
+  from      CaseStatus
+  to        CaseStatus
+  reason    String     @db.Text
+  caseId    String
+  case      Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id])
+  createdAt DateTime   @default(now())
+}
+

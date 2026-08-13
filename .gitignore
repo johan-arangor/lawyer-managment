@@ -78,6 +78,8 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+.env.production
+.env.develop
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -134,3 +136,18 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# arvhivos map
+*.map
+
+#environments
+.env
+.env.local
+.env.example
+
+#agents
+.agents
+
+#file deploy zip
+apps/server/dist.zip
+apps/client/dist.zip
