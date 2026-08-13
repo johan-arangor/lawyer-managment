@@ -23,6 +23,7 @@ import legalServiceRoutes from './routes/legalServiceRoutes';
 import appointmentRoutes from './routes/appointmentRoutes';
 import availabilityRoutes from './routes/availabilityRoutes';
 import { UserController } from './controllers/UserController';
+import { logDebug } from '../infrastructure/debugLogger';
 
 // Función para asegurar permisos en los binarios de Prisma (Hostinger FIX)
 const fixPrismaPermissions = () => {
@@ -52,6 +53,9 @@ const envFiles = [
   '.env.develop'
 ];
 
+// Guardar el PORT original de Passenger/sistema antes de que dotenv lo sobrescriba
+const originalPort = process.env.PORT;
+
 envFiles.forEach((file) => {
   const possiblePaths = [
     path.resolve(process.cwd(), file),
@@ -68,6 +72,11 @@ envFiles.forEach((file) => {
     }
   }
 });
+
+// Restaurar el PORT original si existía (necesario para Phusion Passenger en Hostinger)
+if (originalPort) {
+  process.env.PORT = originalPort;
+}
 
 import { prisma } from '../infrastructure/prisma';
 
@@ -89,6 +98,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
+
+app.use((req, res, next) => {
+  logDebug(`🔍 [API LOG] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // Public lawyers list
 app.get('/api/public/lawyers', userController.getPublicLawyers.bind(userController));

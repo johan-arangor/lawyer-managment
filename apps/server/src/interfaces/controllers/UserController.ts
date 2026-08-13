@@ -5,20 +5,22 @@ import * as bcrypt from 'bcryptjs';
 import { prisma } from '../../infrastructure/prisma';
 import { EmailProvider } from '../../infrastructure/EmailProvider';
 
+import { logDebug } from '../../infrastructure/debugLogger';
+
 const emailProvider = new EmailProvider();
 
 export class UserController {
   async getAll(req: any, res: any) {
+    logDebug(`👤 [UserController.getAll] Starting to fetch users...`);
     try {
       const filters: any = { isActive: true };
       
       // Lawyers only see their own clients
       if (req.user.role === 'LAWYER') {
         filters.role = 'CLIENT';
-        // In this simple model, we assume access to all clients or filter by relation if needed
-        // For now, consistent with requirements: "rol abogado puede crear clientes"
       }
 
+      logDebug(`👤 [UserController.getAll] Querying database with filters: ${JSON.stringify(filters)}`);
       const users = await prisma.user.findMany({
         where: filters,
         select: {
@@ -35,8 +37,10 @@ export class UserController {
         },
         orderBy: { createdAt: 'desc' }
       });
+      logDebug(`👤 [UserController.getAll] Database query completed successfully. Found ${users.length} users.`);
       res.json(users);
     } catch (err: any) {
+      logDebug(`👤 [UserController.getAll] Error fetching users: ${err.message}`);
       res.status(500).json({ error: err.message });
     }
   }
@@ -105,13 +109,14 @@ export class UserController {
           contactEmail2,
           password: hashedPassword,
           confirmationToken,
+          confirmationExpires: new Date(Date.now() + 24 * 3600000), // Expiración en 24 horas
           isConfirmed: false,
           hasPrivateAreaAccess: role === 'ADMIN' || role === 'LAWYER'
         }
       });
 
       // 6. Send Email
-      await emailProvider.sendConfirmationEmail(email, name, confirmationToken);
+      await emailProvider.sendConfirmationEmail(email, name, confirmationToken, req.body.source || 'app');
 
       res.status(201).json({ 
         message: 'Usuario creado exitosamente. Se ha enviado un correo de confirmación.',
@@ -156,7 +161,8 @@ export class UserController {
         const confirmationToken = crypto.randomBytes(32).toString('hex');
         updatePayload.isConfirmed = false;
         updatePayload.confirmationToken = confirmationToken;
-        await emailProvider.sendConfirmationEmail(data.email, data.name || currentUser.name, confirmationToken);
+        updatePayload.confirmationExpires = new Date(Date.now() + 24 * 3600000);
+        await emailProvider.sendConfirmationEmail(data.email, data.name || currentUser.name, confirmationToken, req.body.source || 'app');
       }
 
       const updated = await prisma.user.update({
@@ -218,10 +224,13 @@ export class UserController {
       const newToken = crypto.randomBytes(32).toString('hex');
       await prisma.user.update({
         where: { id },
-        data: { confirmationToken: newToken }
+        data: { 
+          confirmationToken: newToken,
+          confirmationExpires: new Date(Date.now() + 24 * 3600000)
+        }
       });
 
-      await emailProvider.sendConfirmationEmail(user.email, user.name, newToken);
+      await emailProvider.sendConfirmationEmail(user.email, user.name, newToken, req.body.source || 'app');
 
       res.json({ message: 'Correo de confirmación reenviado exitosamente.' });
     } catch (err: any) {
